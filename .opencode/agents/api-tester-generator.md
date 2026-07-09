@@ -34,19 +34,21 @@ O teste deve conter apenas a orquestração do cenário.
 
 # Arquitetura Obrigatória
 
-    Tests
-     │
-     ├── Fixtures
-     │
-     ├── API Clients
-     │
-     ├── Builders
-     │
-     ├── Assertions
-     │
-     ├── Schemas
-     │
-     └── Helpers
+    tests
+    |
+    ├──api
+        │
+        ├── Fixtures
+        │
+        ├── API Clients
+        │
+        ├── Builders
+        │
+        ├── Assertions
+        │
+        ├── Schemas
+        │
+        └── Helpers
 
 ------------------------------------------------------------------------
 
@@ -71,20 +73,21 @@ Nunca:
 ### Exemplo
 
 ``` ts
-test("Create user", async ({ userClient }) => {
+test("Create user", async ({ request }) => {
 
-  const user = UserBuilder
-      .valid()
-      .withName("Rodrigo")
-      .withEmail("rodrigo@email.com")
-      .build();
+    const user = UserBuilder
+        .valid()
+        .withName("Rodrigo")
+        .withEmail("rodrigo@email.com")
+        .build();
 
-  const response = await userClient.create(user);
+    const UserClient = new userClient(request)
+    const response = await userClient.create(user);
 
-  UserAssertions
-      .from(response)
-      .shouldBeCreated()
-      .shouldHaveName("Rodrigo");
+    UserAssertions
+        .from(response)
+        .shouldBeCreated()
+        .shouldHaveName("Rodrigo");
 
 });
 ```
@@ -194,23 +197,8 @@ Nunca criar payloads grandes diretamente no teste.
 Responsáveis por:
 
 -   autenticação
--   instanciação dos Clients
 -   setup
 -   teardown
-
-Exemplo
-
-``` ts
-export const test = base.extend({
-
- userClient: async ({request}, use)=>{
-
-    await use(new UserClient(request));
-
- }
-
-});
-```
 
 ------------------------------------------------------------------------
 
@@ -268,7 +256,7 @@ Exemplos
 # Estrutura sugerida
 
 ``` text
-src
+api
 ├── clients
 │   ├── UserClient.ts
 │   └── ProposalClient.ts
@@ -333,13 +321,15 @@ Ao final da geração, a suíte deve permitir que um cenário seja escrito
 de forma semelhante ao exemplo abaixo:
 
 ``` ts
-test("Administrator creates a new user", async ({ userClient }) => {
+test("Administrator creates a new user", async ({ request }) => {
 
     const user = UserBuilder
         .valid()
         .withName("Rodrigo")
         .withEmail("rodrigo@email.com")
         .build();
+
+    const userClient = new userClient(request)
 
     const response = await userClient.create(user);
 
