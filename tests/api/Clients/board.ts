@@ -12,5 +12,11 @@ export class BoardsClient {
     const response = await this.request.get(`/boards?includeArchived=${status}`);
     return response;
   }
+
+  async create(board: { nome: string; dataInicio: string; descricao: string }) {
+    return this.request.post('/boards', {
+      data: board,
+    });
+  }
   
 }

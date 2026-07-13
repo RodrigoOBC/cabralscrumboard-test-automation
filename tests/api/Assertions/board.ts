@@ -29,6 +29,47 @@ export class BoardAssertions {
         return this;
     }
 
+    async shouldBeCreated() {
+        expect(this.response.status()).toBe(201);
+
+        const body = await this.response.json();
+
+        expect(body).toEqual(
+            expect.objectContaining({
+                id: expect.any(String),
+                nome: expect.any(String),
+                dataInicio: expect.any(String),
+                descricao: expect.any(String),
+                arquivado: false,
+                criadoEm: expect.any(String),
+                atualizadoEm: expect.any(String)
+            })
+        );
+
+        return this;
+    }
+
+    async shouldHaveName(nome: string) {
+        const body = await this.response.json();
+        expect(body.nome).toBe(nome);
+
+        return this;
+    }
+
+    async shouldHaveStartDate(dataInicio: string) {
+        const body = await this.response.json();
+        expect(body.dataInicio).toBe(dataInicio);
+
+        return this;
+    }
+
+    async shouldHaveDescription(descricao: string) {
+        const body = await this.response.json();
+        expect(body.descricao).toBe(descricao);
+
+        return this;
+    }
+
     async shouldBeWithArchivedBoards() {
         expect(this.response.status()).toBe(200);
 
