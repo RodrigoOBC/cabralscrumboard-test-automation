@@ -104,6 +104,31 @@ test.describe('Boards API', () => {
       ]);
   });
 
+  test('Should create a board without description when description is null', async () => {
+    const board = {
+      ...BoardBuilder
+        .valid()
+        .withUniqueName('TESTER')
+        .withStartDate('2026-12-11')
+        .build(),
+      descricao: null,
+    };
+
+    const response = await boardsClient.create(board);
+
+    await BoardAssertions
+      .from(response)
+      .shouldBeCreatedWithoutDescription();
+
+    await BoardAssertions
+      .from(response)
+      .shouldHaveName(board.nome);
+
+    await BoardAssertions
+      .from(response)
+      .shouldHaveStartDate(board.dataInicio);
+  });
+
   test('Should validate required board start date', async () => {
     const board = BoardBuilder
       .valid()
@@ -121,5 +146,70 @@ test.describe('Boards API', () => {
     await BoardAssertions
       .from(response)
       .shouldHaveValidationMessage('A data de início deve ser uma data válida.');
+  });
+
+  test('Should validate required board start date when null', async () => {
+    const board = {
+      ...BoardBuilder
+        .valid()
+        .withUniqueName('TESTER')
+        .withDescription('TESTE')
+        .build(),
+      dataInicio: null,
+    };
+
+    const response = await boardsClient.create(board);
+
+    await BoardAssertions
+      .from(response)
+      .shouldBeBadRequest();
+
+    await BoardAssertions
+      .from(response)
+      .shouldHaveValidationMessage('A data de início deve ser uma data válida.');
+  });
+
+  test('Should validate board name when numeric', async () => {
+    const board = {
+      ...BoardBuilder
+        .valid()
+        .withStartDate('2026-12-11')
+        .withDescription('TESTE')
+        .build(),
+      nome: 123,
+    };
+
+    const response = await boardsClient.create(board);
+
+    await BoardAssertions
+      .from(response)
+      .shouldBeBadRequest();
+
+    await BoardAssertions
+      .from(response)
+      .shouldHaveValidationMessages([
+        'O nome do board é obrigatório.',
+        'O nome do board deve ser texto.',
+      ]);
+  });
+
+  test('Should validate required board name when field is missing', async () => {
+    const board = {
+      dataInicio: '2026-12-11',
+      descricao: 'TESTE',
+    };
+
+    const response = await boardsClient.create(board as { nome: string; dataInicio: string; descricao: string });
+
+    await BoardAssertions
+      .from(response)
+      .shouldBeBadRequest();
+
+    await BoardAssertions
+      .from(response)
+      .shouldHaveValidationMessages([
+        'O nome do board é obrigatório.',
+        'O nome do board deve ser texto.',
+      ]);
   });
 });

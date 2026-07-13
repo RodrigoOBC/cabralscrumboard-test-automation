@@ -49,6 +49,27 @@ export class BoardAssertions {
         return this;
     }
 
+    async shouldBeCreatedWithoutDescription() {
+        expect(this.response.status()).toBe(201);
+
+        const body = await this.response.json();
+
+        expect(body).toEqual(
+            expect.objectContaining({
+                id: expect.any(String),
+                nome: expect.any(String),
+                dataInicio: expect.any(String),
+                arquivado: false,
+                criadoEm: expect.any(String),
+                atualizadoEm: expect.any(String)
+            })
+        );
+
+        expect(body.descricao).toBeUndefined();
+
+        return this;
+    }
+
     async shouldHaveName(nome: string) {
         const body = await this.response.json();
         expect(body.nome).toBe(nome);
