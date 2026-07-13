@@ -66,3 +66,23 @@ export const CreateBoardSuccessSchema = {
     },
     additionalProperties: false
 }
+
+export const BoardValidationErrorSchema = {
+    type: 'object',
+    required: ['message', 'error', 'statusCode'],
+    properties: {
+        message: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        error: {
+            type: 'string'
+        },
+        statusCode: {
+            type: 'number'
+        }
+    },
+    additionalProperties: false
+}

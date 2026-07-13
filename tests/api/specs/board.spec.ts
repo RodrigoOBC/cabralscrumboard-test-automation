@@ -1,5 +1,3 @@
-imp
-
 import { test } from '@playwright/test';
 import { BoardsClient } from '../Clients/board';
 import { BoardAssertions } from '../Assertions/board';
@@ -37,7 +35,6 @@ test.describe('Boards API', () => {
   });
 
   test('Should create a board with unique name', async () => {
-
     const board = BoardBuilder
       .valid()
       .withUniqueName('TESTER')
@@ -62,5 +59,43 @@ test.describe('Boards API', () => {
     await BoardAssertions
       .from(response)
       .shouldHaveDescription(board.descricao);
+  });
+
+  test('Should validate required board name', async () => {
+    const board = BoardBuilder
+      .valid()
+      .withName('')
+      .withStartDate('2026-12-11')
+      .withDescription('TESTE')
+      .build();
+
+    const response = await boardsClient.create(board);
+
+    await BoardAssertions
+      .from(response)
+      .shouldBeBadRequest();
+
+    await BoardAssertions
+      .from(response)
+      .shouldHaveValidationMessage('O nome do board é obrigatório.');
+  });
+
+  test('Should validate required board start date', async () => {
+    const board = BoardBuilder
+      .valid()
+      .withUniqueName('TESTER')
+      .withStartDate('')
+      .withDescription('TESTE')
+      .build();
+
+    const response = await boardsClient.create(board);
+
+    await BoardAssertions
+      .from(response)
+      .shouldBeBadRequest();
+
+    await BoardAssertions
+      .from(response)
+      .shouldHaveValidationMessage('A data de início deve ser uma data válida.');
   });
 });

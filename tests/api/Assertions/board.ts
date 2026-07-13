@@ -70,6 +70,30 @@ export class BoardAssertions {
         return this;
     }
 
+    async shouldBeBadRequest() {
+        expect(this.response.status()).toBe(400);
+
+        const body = await this.response.json();
+
+        expect(body).toEqual(
+            expect.objectContaining({
+                message: expect.any(Array),
+                error: 'Bad Request',
+                statusCode: 400
+            })
+        );
+
+        return this;
+    }
+
+    async shouldHaveValidationMessage(message: string) {
+        const body = await this.response.json();
+
+        expect(body.message).toContain(message);
+
+        return this;
+    }
+
     async shouldBeWithArchivedBoards() {
         expect(this.response.status()).toBe(200);
 
