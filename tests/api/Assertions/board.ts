@@ -94,6 +94,14 @@ export class BoardAssertions {
         return this;
     }
 
+    async shouldHaveValidationMessages(messages: string[]) {
+        const body = await this.response.json();
+
+        expect(body.message).toEqual(expect.arrayContaining(messages));
+
+        return this;
+    }
+
     async shouldBeWithArchivedBoards() {
         expect(this.response.status()).toBe(200);
 

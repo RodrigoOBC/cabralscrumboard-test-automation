@@ -80,6 +80,30 @@ test.describe('Boards API', () => {
       .shouldHaveValidationMessage('O nome do board é obrigatório.');
   });
 
+  test('Should validate board name as text', async () => {
+    const board = {
+      ...BoardBuilder
+        .valid()
+        .withStartDate('2026-12-11')
+        .withDescription('TESTE')
+        .build(),
+      nome: null,
+    };
+
+    const response = await boardsClient.create(board);
+
+    await BoardAssertions
+      .from(response)
+      .shouldBeBadRequest();
+
+    await BoardAssertions
+      .from(response)
+      .shouldHaveValidationMessages([
+        'O nome do board é obrigatório.',
+        'O nome do board deve ser texto.',
+      ]);
+  });
+
   test('Should validate required board start date', async () => {
     const board = BoardBuilder
       .valid()
