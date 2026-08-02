@@ -29,6 +29,43 @@ export class BoardAssertions {
         return this;
     }
 
+    async shouldBeValidBoardDetails() {
+        expect(this.response.status()).toBe(200);
+
+        const body = await this.response.json();
+
+        expect(body).toEqual(
+            expect.objectContaining({
+                id: expect.any(String),
+                nome: expect.any(String),
+                dataInicio: expect.any(String),
+                descricao: expect.any(String),
+                arquivado: expect.any(Boolean),
+                criadoEm: expect.any(String),
+                atualizadoEm: expect.any(String),
+                backlog: expect.objectContaining({
+                    cards: expect.any(Array)
+                }),
+                steps: expect.any(Array)
+            })
+        );
+
+        return this;
+    }
+
+    async shouldContainFilteredCardsByTag(tagId: string) {
+        const body = await this.response.json();
+
+        for (const step of body.steps) {
+            for (const card of step.cards) {
+                const hasTag = card.tags.some((tag: { id: string }) => tag.id === tagId);
+                expect(hasTag).toBe(true);
+            }
+        }
+
+        return this;
+    }
+
     async shouldBeCreated() {
         expect(this.response.status()).toBe(201);
 
@@ -153,6 +190,22 @@ export class BoardAssertions {
         expect(body).toEqual(
             expect.objectContaining({
                 message: expect.any(Array),
+                error: 'Bad Request',
+                statusCode: 400
+            })
+        );
+
+        return this;
+    }
+
+    async shouldBeBadRequestWithMessage(message: string) {
+        expect(this.response.status()).toBe(400);
+
+        const body = await this.response.json();
+
+        expect(body).toEqual(
+            expect.objectContaining({
+                message,
                 error: 'Bad Request',
                 statusCode: 400
             })

@@ -13,6 +13,14 @@ export class BoardsClient {
     return response;
   }
 
+  async getById(boardId: string, tagIds?: string[]) {
+    const query = tagIds?.length
+      ? `?${tagIds.map((tagId) => `tagIds=${tagId}`).join('&')}`
+      : '';
+
+    return this.request.get(`/boards/${boardId}${query}`);
+  }
+
   async create(board: { nome: string; dataInicio: string; descricao: string }) {
     return this.request.post('/boards', {
       data: board,

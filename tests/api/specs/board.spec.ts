@@ -12,6 +12,9 @@ test.describe('Boards API', () => {
   });
 
   test.describe('GET /boards', () => {
+    const boardId = '8d126496-b352-4c12-9e25-60c68f8e8d00';
+    const validTagId = '6d41247f-5bc5-4f96-9b6d-708bdde18211';
+
     test('Should validate the list of boards', async () => {
       const response = await boardsClient.getBoardsByStatus('false');
 
@@ -34,6 +37,50 @@ test.describe('Boards API', () => {
       await BoardAssertions
         .from(response)
         .shouldBeOnlyActiveBoards();
+    });
+
+    test('Should get board details by id', async () => {
+      const response = await boardsClient.getById(boardId);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeValidBoardDetails();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveName('Board Pessoal');
+    });
+
+    test('Should get board details filtered by tag id', async () => {
+      const response = await boardsClient.getById(boardId, [validTagId]);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeValidBoardDetails();
+
+      await BoardAssertions
+        .from(response)
+        .shouldContainFilteredCardsByTag(validTagId);
+    });
+
+    test('Should return not found when board id does not exist', async () => {
+      const response = await boardsClient.getById(randomUUID());
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeNotFound();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveErrorMessage('Board não encontrado.');
+    });
+
+    test('Should return bad request when tag id does not exist', async () => {
+      const response = await boardsClient.getById(boardId, [randomUUID()]);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeBadRequestWithMessage('Uma ou mais tags informadas não existem.');
     });
   });
 
