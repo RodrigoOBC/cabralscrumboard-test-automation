@@ -113,6 +113,56 @@ test.describe('Boards API', () => {
       .shouldHaveErrorMessage('Board não encontrado.');
   });
 
+  test('Should restore an archived board', async () => {
+    const board = BoardBuilder
+      .valid()
+      .withUniqueName('TESTER')
+      .withStartDate('2026-12-11')
+      .withDescription('TESTE')
+      .build();
+
+    const createResponse = await boardsClient.create(board);
+    const createdBoard = await createResponse.json();
+
+    await boardsClient.archive(createdBoard.id);
+
+    const restoreResponse = await boardsClient.restore(createdBoard.id);
+
+    await BoardAssertions
+      .from(restoreResponse)
+      .shouldBeRestored();
+
+    await BoardAssertions
+      .from(restoreResponse)
+      .shouldHaveName(board.nome);
+
+    await BoardAssertions
+      .from(restoreResponse)
+      .shouldHaveStartDate(board.dataInicio);
+
+    await BoardAssertions
+      .from(restoreResponse)
+      .shouldHaveDescription(board.descricao);
+
+    await BoardAssertions
+      .from(restoreResponse)
+      .shouldBeActiveStatus();
+  });
+
+  test('Should return not found when restoring a non-existent board', async () => {
+    const boardId = randomUUID();
+
+    const response = await boardsClient.restore(boardId);
+
+    await BoardAssertions
+      .from(response)
+      .shouldBeNotFound();
+
+    await BoardAssertions
+      .from(response)
+      .shouldHaveErrorMessage('Board não encontrado.');
+  });
+
   test('Should validate required board name', async () => {
     const board = BoardBuilder
         .valid()
