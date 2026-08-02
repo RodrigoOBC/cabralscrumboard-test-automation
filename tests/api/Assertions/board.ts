@@ -70,6 +70,33 @@ export class BoardAssertions {
         return this;
     }
 
+    async shouldBeArchived() {
+        expect(this.response.status()).toBe(200);
+
+        const body = await this.response.json();
+
+        expect(body).toEqual(
+            expect.objectContaining({
+                id: expect.any(String),
+                nome: expect.any(String),
+                dataInicio: expect.any(String),
+                arquivado: true,
+                criadoEm: expect.any(String),
+                atualizadoEm: expect.any(String)
+            })
+        );
+
+        return this;
+    }
+
+    async shouldBeArchivedStatus() {
+        const body = await this.response.json();
+
+        expect(body.arquivado).toBe(true);
+
+        return this;
+    }
+
     async shouldHaveName(nome: string) {
         const body = await this.response.json();
         expect(body.nome).toBe(nome);
@@ -103,6 +130,30 @@ export class BoardAssertions {
                 statusCode: 400
             })
         );
+
+        return this;
+    }
+
+    async shouldBeNotFound() {
+        expect(this.response.status()).toBe(404);
+
+        const body = await this.response.json();
+
+        expect(body).toEqual(
+            expect.objectContaining({
+                message: expect.anything(),
+                error: 'Not Found',
+                statusCode: 404
+            })
+        );
+
+        return this;
+    }
+
+    async shouldHaveErrorMessage(message: string) {
+        const body = await this.response.json();
+
+        expect(body.message).toBe(message);
 
         return this;
     }

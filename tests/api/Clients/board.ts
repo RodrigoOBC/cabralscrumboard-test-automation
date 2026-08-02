@@ -18,5 +18,9 @@ export class BoardsClient {
       data: board,
     });
   }
+
+  async archive(boardId: string) {
+    return this.request.post(`/boards/${boardId}/archive`);
+  }
   
 }
