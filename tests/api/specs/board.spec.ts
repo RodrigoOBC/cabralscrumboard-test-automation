@@ -1,6 +1,8 @@
 import { test } from '@playwright/test';
+import { randomUUID } from 'crypto';
 import { BoardsClient } from '../Clients/board';
 import { BoardAssertions } from '../Assertions/board';
+import { BoardBuilder } from '../Builders/board';
 
 test.describe('Boards API', () => {
   let boardsClient: BoardsClient;
@@ -9,27 +11,405 @@ test.describe('Boards API', () => {
     boardsClient = new BoardsClient(request);
   });
 
-  test('Should validate the list of boards', async () => {
-    const response = await boardsClient.getBoardsByStatus('false');
+  test.describe('GET /boards', () => {
+    test('Should validate the list of boards', async () => {
+      const response = await boardsClient.getBoardsByStatus('false');
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeValidBoardList();
+    });
+
+    test('Should validate only archived boards', async () => {
+      const response = await boardsClient.getBoardsByStatus('true');
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeWithArchivedBoards();
+    });
+
+    test('Should validate only active boards', async () => {
+      const response = await boardsClient.getBoardsByStatus('false');
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeOnlyActiveBoards();
+    });
+  });
+
+  test.describe('GET /boards/:boardId', () => {
+    const seededBoardId = '2527589f-90a4-48b3-bffb-04a396cdbd26';
+    const backendTagId = '31ec9a7e-24d2-4ab4-af19-df52d18865fc';
+    const frontendTagId = '6d41247f-5bc5-4f96-9b6d-708bdde18211';
+    const productTagId = '4c7221cf-11db-4caa-b483-1cc5df566515';
+
+    test('Should get board details by id', async () => {
+      const response = await boardsClient.getById(seededBoardId);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeValidBoardDetails();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveId(seededBoardId);
+
+      await BoardAssertions
+        .from(response)
+        .shouldExposeBoardCardsAndSubtasks();
+    });
+
+    test('Should get board details filtered by a single tag id', async () => {
+      const response = await boardsClient.getById(seededBoardId, [productTagId]);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeValidBoardDetails();
+
+      await BoardAssertions
+        .from(response)
+        .shouldContainFilteredCardsByTag(productTagId);
+    });
+
+    test('Should get board details filtered by tag ids with OR semantics', async () => {
+      const response = await boardsClient.getById(seededBoardId, [backendTagId, productTagId]);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeValidBoardDetails();
+
+      await BoardAssertions
+        .from(response)
+        .shouldContainOnlyCardsMatchingAnyTag([backendTagId, productTagId]);
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveFilteredCardsInBacklogAndSteps();
+
+      await BoardAssertions
+        .from(response)
+        .shouldCoverRequestedTags([backendTagId, productTagId]);
+    });
+
+    test('Should return not found when board id does not exist', async () => {
+      const response = await boardsClient.getById(randomUUID());
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeNotFound();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveErrorMessage('Board não encontrado.');
+    });
+
+    test('Should return not found when board id format is invalid', async () => {
+      const response = await boardsClient.getById('board-id-invalido');
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeNotFound();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveErrorMessage('Board não encontrado.');
+    });
+
+    test('Should return bad request when tag id does not exist', async () => {
+      const response = await boardsClient.getById(seededBoardId, [randomUUID()]);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeBadRequestWithMessage('Uma ou mais tags informadas não existem.');
+    });
+
+    test('Should return bad request when tag id format is invalid', async () => {
+      const response = await boardsClient.getById(seededBoardId, [frontendTagId, 'tag-id-invalido']);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeBadRequestWithMessage('Cada tag do card deve ser um id válido.');
+    });
+  });
+
+  test.describe('POST /boards', () => {
+  test('Should create a board with unique name', async () => {
+    const board = BoardBuilder
+      .valid()
+        .withUniqueName('TESTER')
+        .withStartDate('2026-12-11')
+        .withDescription('TESTE')
+        .build();
+
+      const response = await boardsClient.create(board);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeCreated();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveName(board.nome);
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveStartDate(board.dataInicio);
 
     await BoardAssertions
       .from(response)
-      .shouldBeValidBoardList();
+      .shouldHaveDescription(board.descricao);
   });
 
-  test('Should validate only archived boards', async () => {
-    const response = await boardsClient.getBoardsByStatus('true');
+  test('Should archive an active board', async () => {
+    const board = BoardBuilder
+      .valid()
+      .withUniqueName('TESTER')
+      .withStartDate('2026-12-11')
+      .withDescription('TESTE')
+      .build();
+
+    const createResponse = await boardsClient.create(board);
+    const createdBoard = await createResponse.json();
+
+    const archiveResponse = await boardsClient.archive(createdBoard.id);
+
+    await BoardAssertions
+      .from(archiveResponse)
+      .shouldBeArchived();
+
+    await BoardAssertions
+      .from(archiveResponse)
+      .shouldHaveName(board.nome);
+
+    await BoardAssertions
+      .from(archiveResponse)
+      .shouldHaveStartDate(board.dataInicio);
+
+    await BoardAssertions
+      .from(archiveResponse)
+      .shouldHaveDescription(board.descricao);
+
+    await BoardAssertions
+      .from(archiveResponse)
+      .shouldBeArchivedStatus();
+  });
+
+  test('Should return not found when archiving a non-existent board', async () => {
+    const boardId = randomUUID();
+
+    const response = await boardsClient.archive(boardId);
 
     await BoardAssertions
       .from(response)
-      .shouldBeWithArchivedBoards();
-  });
-
-  test('Should validate only active boards', async () => {
-    const response = await boardsClient.getBoardsByStatus('false');
+      .shouldBeNotFound();
 
     await BoardAssertions
       .from(response)
-      .shouldBeOnlyActiveBoards();
+      .shouldHaveErrorMessage('Board não encontrado.');
   });
+
+  test('Should restore an archived board', async () => {
+    const board = BoardBuilder
+      .valid()
+      .withUniqueName('TESTER')
+      .withStartDate('2026-12-11')
+      .withDescription('TESTE')
+      .build();
+
+    const createResponse = await boardsClient.create(board);
+    const createdBoard = await createResponse.json();
+
+    await boardsClient.archive(createdBoard.id);
+
+    const restoreResponse = await boardsClient.restore(createdBoard.id);
+
+    await BoardAssertions
+      .from(restoreResponse)
+      .shouldBeRestored();
+
+    await BoardAssertions
+      .from(restoreResponse)
+      .shouldHaveName(board.nome);
+
+    await BoardAssertions
+      .from(restoreResponse)
+      .shouldHaveStartDate(board.dataInicio);
+
+    await BoardAssertions
+      .from(restoreResponse)
+      .shouldHaveDescription(board.descricao);
+
+    await BoardAssertions
+      .from(restoreResponse)
+      .shouldBeActiveStatus();
+  });
+
+  test('Should return not found when restoring a non-existent board', async () => {
+    const boardId = randomUUID();
+
+    const response = await boardsClient.restore(boardId);
+
+    await BoardAssertions
+      .from(response)
+      .shouldBeNotFound();
+
+    await BoardAssertions
+      .from(response)
+      .shouldHaveErrorMessage('Board não encontrado.');
+  });
+
+  test('Should validate required board name', async () => {
+    const board = BoardBuilder
+        .valid()
+        .withName('')
+        .withStartDate('2026-12-11')
+        .withDescription('TESTE')
+        .build();
+
+      const response = await boardsClient.create(board);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeBadRequest();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveValidationMessage('O nome do board é obrigatório.');
+    });
+
+    test('Should validate board name as text', async () => {
+      const board = {
+        ...BoardBuilder
+          .valid()
+          .withStartDate('2026-12-11')
+          .withDescription('TESTE')
+          .build(),
+        nome: null,
+      };
+
+      const response = await boardsClient.create(board);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeBadRequest();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveValidationMessages([
+          'O nome do board é obrigatório.',
+          'O nome do board deve ser texto.',
+        ]);
+    });
+
+    test('Should create a board without description when description is null', async () => {
+      const board = {
+        ...BoardBuilder
+          .valid()
+          .withUniqueName('TESTER')
+          .withStartDate('2026-12-11')
+          .build(),
+        descricao: null,
+      };
+
+      const response = await boardsClient.create(board);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeCreatedWithoutDescription();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveName(board.nome);
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveStartDate(board.dataInicio);
+    });
+
+    test('Should validate required board start date', async () => {
+      const board = BoardBuilder
+        .valid()
+        .withUniqueName('TESTER')
+        .withStartDate('')
+        .withDescription('TESTE')
+        .build();
+
+      const response = await boardsClient.create(board);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeBadRequest();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveValidationMessage('A data de início deve ser uma data válida.');
+    });
+
+    test('Should validate required board start date when null', async () => {
+      const board = {
+        ...BoardBuilder
+          .valid()
+          .withUniqueName('TESTER')
+          .withDescription('TESTE')
+          .build(),
+        dataInicio: null,
+      };
+
+      const response = await boardsClient.create(board);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeBadRequest();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveValidationMessage('A data de início deve ser uma data válida.');
+    });
+
+    test('Should validate board name when numeric', async () => {
+      const board = {
+        ...BoardBuilder
+          .valid()
+          .withStartDate('2026-12-11')
+          .withDescription('TESTE')
+          .build(),
+        nome: 123,
+      };
+
+      const response = await boardsClient.create(board);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeBadRequest();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveValidationMessages([
+          'O nome do board é obrigatório.',
+          'O nome do board deve ser texto.',
+        ]);
+    });
+
+    test('Should validate required board name when field is missing', async () => {
+      const board = {
+        dataInicio: '2026-12-11',
+        descricao: 'TESTE',
+      };
+
+      const response = await boardsClient.create(board as { nome: string; dataInicio: string; descricao: string });
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeBadRequest();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveValidationMessages([
+          'O nome do board é obrigatório.',
+          'O nome do board deve ser texto.',
+        ]);
+    });
+  });
+
+  
 });
