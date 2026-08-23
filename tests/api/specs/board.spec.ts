@@ -12,9 +12,6 @@ test.describe('Boards API', () => {
   });
 
   test.describe('GET /boards', () => {
-    const boardId = '8d126496-b352-4c12-9e25-60c68f8e8d00';
-    const validTagId = '6d41247f-5bc5-4f96-9b6d-708bdde18211';
-
     test('Should validate the list of boards', async () => {
       const response = await boardsClient.getBoardsByStatus('false');
 
@@ -38,9 +35,16 @@ test.describe('Boards API', () => {
         .from(response)
         .shouldBeOnlyActiveBoards();
     });
+  });
+
+  test.describe('GET /boards/:boardId', () => {
+    const seededBoardId = '2527589f-90a4-48b3-bffb-04a396cdbd26';
+    const backendTagId = '31ec9a7e-24d2-4ab4-af19-df52d18865fc';
+    const frontendTagId = '6d41247f-5bc5-4f96-9b6d-708bdde18211';
+    const productTagId = '4c7221cf-11db-4caa-b483-1cc5df566515';
 
     test('Should get board details by id', async () => {
-      const response = await boardsClient.getById(boardId);
+      const response = await boardsClient.getById(seededBoardId);
 
       await BoardAssertions
         .from(response)
@@ -48,11 +52,15 @@ test.describe('Boards API', () => {
 
       await BoardAssertions
         .from(response)
-        .shouldHaveName('Board Pessoal');
+        .shouldHaveId(seededBoardId);
+
+      await BoardAssertions
+        .from(response)
+        .shouldExposeBoardCardsAndSubtasks();
     });
 
-    test('Should get board details filtered by tag id', async () => {
-      const response = await boardsClient.getById(boardId, [validTagId]);
+    test('Should get board details filtered by a single tag id', async () => {
+      const response = await boardsClient.getById(seededBoardId, [productTagId]);
 
       await BoardAssertions
         .from(response)
@@ -60,7 +68,27 @@ test.describe('Boards API', () => {
 
       await BoardAssertions
         .from(response)
-        .shouldContainFilteredCardsByTag(validTagId);
+        .shouldContainFilteredCardsByTag(productTagId);
+    });
+
+    test('Should get board details filtered by tag ids with OR semantics', async () => {
+      const response = await boardsClient.getById(seededBoardId, [backendTagId, productTagId]);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeValidBoardDetails();
+
+      await BoardAssertions
+        .from(response)
+        .shouldContainOnlyCardsMatchingAnyTag([backendTagId, productTagId]);
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveFilteredCardsInBacklogAndSteps();
+
+      await BoardAssertions
+        .from(response)
+        .shouldCoverRequestedTags([backendTagId, productTagId]);
     });
 
     test('Should return not found when board id does not exist', async () => {
@@ -75,12 +103,32 @@ test.describe('Boards API', () => {
         .shouldHaveErrorMessage('Board não encontrado.');
     });
 
+    test('Should return not found when board id format is invalid', async () => {
+      const response = await boardsClient.getById('board-id-invalido');
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeNotFound();
+
+      await BoardAssertions
+        .from(response)
+        .shouldHaveErrorMessage('Board não encontrado.');
+    });
+
     test('Should return bad request when tag id does not exist', async () => {
-      const response = await boardsClient.getById(boardId, [randomUUID()]);
+      const response = await boardsClient.getById(seededBoardId, [randomUUID()]);
 
       await BoardAssertions
         .from(response)
         .shouldBeBadRequestWithMessage('Uma ou mais tags informadas não existem.');
+    });
+
+    test('Should return bad request when tag id format is invalid', async () => {
+      const response = await boardsClient.getById(seededBoardId, [frontendTagId, 'tag-id-invalido']);
+
+      await BoardAssertions
+        .from(response)
+        .shouldBeBadRequestWithMessage('Cada tag do card deve ser um id válido.');
     });
   });
 

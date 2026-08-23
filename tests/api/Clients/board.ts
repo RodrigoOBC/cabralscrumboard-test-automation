@@ -15,7 +15,7 @@ export class BoardsClient {
 
   async getById(boardId: string, tagIds?: string[]) {
     const query = tagIds?.length
-      ? `?${tagIds.map((tagId) => `tagIds=${tagId}`).join('&')}`
+      ? `?tagIds=${tagIds.join(',')}`
       : '';
 
     return this.request.get(`/boards/${boardId}${query}`);
